@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import type {
   Room as WechatyRoom,
   Contact as WechatyUser,

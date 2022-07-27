@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import cuid from 'cuid'
 import type { ReadStream } from 'fs'
 
