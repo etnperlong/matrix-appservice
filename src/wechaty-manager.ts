@@ -1,6 +1,7 @@
 import {
   Wechaty,
   WechatyOptions,
+  WechatyBuilder,
   ScanStatus,
   Contact,
   Message,
@@ -57,7 +58,7 @@ export class WechatyManager extends Manager {
       throw new Error('can not create twice for one user id: ' + matrixConsumerId)
     }
 
-    const wechaty = new Wechaty({
+    const wechaty = WechatyBuilder.build({
       ...wechatyOptions,
       name: matrixConsumerId,
     })
@@ -96,12 +97,12 @@ export class WechatyManager extends Manager {
     let matrixConsumerId : undefined | string
     let wechaty          : null | Wechaty
 
-    if (wechatyOrmatrixConsumerId instanceof Wechaty) {
-      wechaty          = wechatyOrmatrixConsumerId
-      matrixConsumerId = this.matrixConsumerId(wechaty)
-    } else {
+    if (typeof wechatyOrmatrixConsumerId === 'string') {
       matrixConsumerId = wechatyOrmatrixConsumerId
       wechaty       = this.wechaty(matrixConsumerId)
+    } else {
+      wechaty          = wechatyOrmatrixConsumerId
+      matrixConsumerId = this.matrixConsumerId(wechaty)
     }
 
     if (!wechaty) {
@@ -166,17 +167,17 @@ export class WechatyManager extends Manager {
 
     let wechaty: null | Wechaty
 
-    if (wechatyOrmatrixConsumerId instanceof Wechaty) {
-      wechaty = wechatyOrmatrixConsumerId
-    } else {
+    if (typeof wechatyOrmatrixConsumerId === 'string') {
       wechaty = this.wechaty(wechatyOrmatrixConsumerId)
       if (!wechaty) {
         log.silly('Wechatymanager', 'filehelperOf(%s) no wechaty found', wechatyOrmatrixConsumerId)
         return null
       }
+    } else {
+      wechaty = wechatyOrmatrixConsumerId
     }
 
-    if (!wechaty.logonoff()) {
+    if (!wechaty.isLoggedIn) {
       log.silly('Wechatymanager', 'filehelperOf(%s) wechaty not loged in yet', wechaty)
       return null
     }

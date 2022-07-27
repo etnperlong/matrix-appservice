@@ -10,8 +10,10 @@ import {
   AppServiceRegistration,
   FileUploadOpts,
 }                       from 'matrix-appservice-bridge'
+import type { Stream } from 'stream'
 
-import { Message } from 'wechaty'
+import type { Message } from 'wechaty'
+import * as PUPPET from 'wechaty-puppet'
 
 import {
   log,
@@ -21,6 +23,19 @@ import {
   Managers,
 }                         from './manager.js'
 import type { Registration } from './registration.js'
+
+function streamToBuffer (stream: Stream): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    stream.on('data', (chunk) => {
+      chunks.push(chunk)
+    })
+    stream.on('end', () => {
+      resolve(Buffer.concat(chunks))
+    })
+    stream.on('error', reject)
+  })
+}
 
 export class AppserviceManager extends Manager {
 
@@ -132,13 +147,13 @@ export class AppserviceManager extends Manager {
 
     if (typeof (message) !== 'string') {
       switch (message.type()) {
-        case Message.Type.Unknown:
+        case PUPPET.types.Message.Unknown:
           break
-        case Message.Type.Audio:
+        case PUPPET.types.Message.Audio:
           break
-        case Message.Type.Contact: // image in ipad protocol is Emoticon
+        case PUPPET.types.Message.Contact: // image in ipad protocol is Emoticon
           break
-        case Message.Type.Emoticon: case Message.Type.Image: case Message.Type.Attachment:
+        case PUPPET.types.Message.Emoticon: case PUPPET.types.Message.Image: case PUPPET.types.Message.Attachment:
         // image in web protocol is Image, in ipad protocol is Emoticon
           try {
             const file = await message.toFileBox()
@@ -147,14 +162,14 @@ export class AppserviceManager extends Manager {
             // digital summary consuming too much computing resources, use the url to lable it is better.
             const url = await intent.uploadContent(buffer, {
               name: file.name,
-              type: file.mimeType === 'emoticon' ? 'image/gif' : file.mimeType,
+              type: file.mediaType === 'emoticon' ? 'image/gif' : file.mediaType,
             })
             await intent.sendMessage(
               inRoom.getId(),
               {
                 body: file.name,
                 info: {},
-                msgtype: message.type() === Message.Type.Attachment ? 'm.file' : 'm.image',
+                msgtype: message.type() === PUPPET.types.Message.Attachment ? 'm.file' : 'm.image',
                 url: url,
               },
             )
@@ -253,22 +268,14 @@ export class AppserviceManager extends Manager {
   }
 
   public async roomMembers (roomId: string): Promise<string[]> {
-    const client = this.bridge.getClientFactory().getClientAs()
-    const result = await client.getJoinedRoomMembers(roomId) as {
-      joined: {
-        [id: string]: {
-          // eslint-disable-next-line camelcase
-          avatar_url: null | string,
-          // eslint-disable-next-line camelcase
-          display_name: string,
-        },
-      }
-    }
+    const appServiceBot = this.bridge.getBot()
+    // const client = this.bridge.getClientFactory().getClientAs()
+    const result = await appServiceBot.getJoinedMembers(roomId)
 
     // { joined:
     //   { '@huan:0v0.bid': { avatar_url: null, display_name: 'huan' },
     //     '@wechaty:0v0.bid': { avatar_url: null, display_name: 'wechaty' } } }
-    return Object.keys(result.joined)
+    return Object.keys(result)
   }
 
   public async setProfile (userId: string, avataUrl: string, displayName: string): Promise<void> {
@@ -282,14 +289,20 @@ export class AppserviceManager extends Manager {
     userId?: string,
     opts?: FileUploadOpts | undefined,
   ): Promise<string> {
-    return this.bridge.getIntent(userId).uploadContent(content, opts)
+    // Readstream to Buffer
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if ((content as ReadStream).pending !== undefined) {
+      const part = content as ReadStream
+      content = await streamToBuffer(part)
+    }
+    return this.bridge.getIntent(userId).uploadContent((content as string | Buffer), opts)
   }
 
   public async mxcUrlToHttp (
     mxcUrl: string,
   ): Promise<string> {
     // also can use getHttpUriForMxc(this.baseUrl, mxcUrl, width, height, resizeMethod, allowDirectLinks);
-    return this.bridge.getIntent().client.mxcUrlToHttp(mxcUrl)
+    return this.bridge.getIntent().matrixClient.mxcToHttp(mxcUrl)
   }
 
 }

@@ -1,10 +1,10 @@
-import readPkgUp            from 'read-pkg-up'
-import { UpdateNotifier }   from 'update-notifier'
+import { readPackageUp }            from 'read-pkg-up'
+import updateNotifier  from 'update-notifier'
 
 import { codeRoot } from '../config.js'
 
 export function checkUpdate (): void {
-  readPkgUp({ cwd: codeRoot })
+  readPackageUp({ cwd: codeRoot })
     .then(pack => {
       if (!pack) {
         throw new Error('package.json not found')
@@ -14,7 +14,7 @@ export function checkUpdate (): void {
       // 1 week
       const updateCheckInterval = 1000 * 60 * 60 * 24 * 7
 
-      const notifier  = new UpdateNotifier({
+      const notifier  = updateNotifier({
         pkg,
         updateCheckInterval,
       })

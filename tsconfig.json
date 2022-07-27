@@ -1,5 +1,5 @@
 {
-  "extends": "@chatie/tsconfig",
+  "extends": "@chatie/tsconfig/tsconfig.json",
   "compilerOptions": {
     "outDir": "dist/esm",
   },

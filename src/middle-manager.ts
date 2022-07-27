@@ -1,9 +1,9 @@
-import {
+import type {
   Room as WechatyRoom,
   Contact as WechatyUser,
   Wechaty,
   Message,
-}                             from 'wechaty'
+} from 'wechaty'
 
 import {
   MatrixRoom,
@@ -134,7 +134,7 @@ export class MiddleManager extends Manager {
       if (!wechaty) {
         throw new Error('no wechaty instance for matrix user id ' + idOrRoomOrUser)
       }
-      return wechaty.userSelf()
+      return wechaty.currentUser
 
     } else if (idOrRoomOrUser instanceof MatrixRoom) {
       matchKey = WECHATY_ROOM_DATA_KEY
@@ -190,13 +190,13 @@ export class MiddleManager extends Manager {
 
     const data = { consumerId } as WechatyRoomData
 
-    if (wechatyUserOrRoom instanceof WechatyUser) {
-      const matrixUser = await this.matrixUser(wechatyUserOrRoom)
+    if ((wechatyUserOrRoom as WechatyUser).friend !== undefined) {
+      const matrixUser = await this.matrixUser((wechatyUserOrRoom as WechatyUser))
 
       data.matrixUserId = matrixUser.getId()
       data.direct       = true
 
-    } else if (wechatyUserOrRoom instanceof WechatyRoom) {
+    } else if ((wechatyUserOrRoom as WechatyRoom).memberAll !== undefined) {
 
       data.wechatyRoomId = wechatyUserOrRoom.id
       data.direct        = false
@@ -271,7 +271,7 @@ export class MiddleManager extends Manager {
     const avatarUrl = await this.appserviceManager.uploadContent(
       avatarBuffer,
       matrixUserId,
-      { type: avatarFile.mimeType },
+      { type: avatarFile.mediaType },
     )
 
     const matrixUser   = new MatrixUser(matrixUserId, {
@@ -312,19 +312,19 @@ export class MiddleManager extends Manager {
     let   roomName: string
     let   creatorId: string
 
-    if (wechatyRoomOrUser instanceof WechatyRoom) {
+    if ((wechatyRoomOrUser as WechatyRoom).memberAll !== undefined) {
       // Room: group
       creatorId = this.appserviceManager.appserviceUserId()
-      roomName = await wechatyRoomOrUser.topic()
-      for await (const member of wechatyRoomOrUser) {
+      roomName = await (wechatyRoomOrUser as WechatyRoom).topic()
+      for await (const member of (wechatyRoomOrUser as WechatyRoom)) {
         const matrixUser = await this.matrixUser(member)
         this.wechatyManager.ifSelfWechaty(member.id)
         || inviteeIdList.push(matrixUser.getId())
       }
-    } else if (wechatyRoomOrUser instanceof WechatyUser) {
+    } else if ((wechatyRoomOrUser as WechatyUser).friend !== undefined) {
       // User: direct message
-      roomName = wechatyRoomOrUser.name()
-      const matrixUser = await this.matrixUser(wechatyRoomOrUser)
+      roomName = (wechatyRoomOrUser as WechatyUser).name()
+      const matrixUser = await this.matrixUser((wechatyRoomOrUser as WechatyUser))
       creatorId = matrixUser.getId()
       inviteeIdList.push(matrixUser.getId())
     } else {
@@ -423,10 +423,10 @@ export class MiddleManager extends Manager {
 
   /**
    * FIXME: Huan(202003) study how to know a matrix room is direct message room
-   */
+
   protected async fixmeTest (matrixRoom: MatrixRoom): Promise<void> {
     const botId = this.appserviceManager.appserviceUserId()
-    const client = this.appserviceManager.bridge.getClientFactory().getClientAs()
+    const client = this.appserviceManager.bridge.
 
     const stateList = await client.roomState(matrixRoom.getId()) as unknown as any[]
     console.info('state:',
@@ -448,6 +448,7 @@ export class MiddleManager extends Manager {
     // console.info('event:', event)
 
   }
+  */
 
   public async directMessageUserPair (
     matrixRoom: MatrixRoom,
@@ -494,16 +495,16 @@ export class MiddleManager extends Manager {
     let matrixRoom
     let matrixUser
 
-    if (from instanceof WechatyUser) {
+    if ((from as WechatyUser).friend !== undefined) {
       // receive messages from wecahty users(your friends)
 
-      matrixRoom = await this.matrixRoom(from)
-      matrixUser = await this.matrixUser(from)
+      matrixRoom = await this.matrixRoom((from as WechatyUser))
+      matrixUser = await this.matrixUser((from as WechatyUser))
 
-    } else if (from instanceof Wechaty) {
+    } else if ((from as Wechaty).state !== undefined) {
       // xxx This block will not be called on the code now, send message (the messages said by your self on other device)
 
-      const consumerId = this.wechatyManager.matrixConsumerId(from)
+      const consumerId = this.wechatyManager.matrixConsumerId((from as Wechaty))
       matrixRoom = await this.adminRoom(consumerId)
 
     } else {
@@ -528,10 +529,10 @@ export class MiddleManager extends Manager {
     const botId = this.appserviceManager.appserviceUserId()
     let consumerId: string
 
-    if (forConsumerIdOrWechaty instanceof Wechaty)  {
-      consumerId = this.wechatyManager.matrixConsumerId(forConsumerIdOrWechaty)
+    if ((forConsumerIdOrWechaty as Wechaty).state !== undefined)  {
+      consumerId = this.wechatyManager.matrixConsumerId((forConsumerIdOrWechaty as Wechaty))
     } else {
-      consumerId = forConsumerIdOrWechaty
+      consumerId = forConsumerIdOrWechaty as string
     }
 
     const roomData: WechatyRoomData = {

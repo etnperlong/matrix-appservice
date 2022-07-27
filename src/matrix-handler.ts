@@ -18,7 +18,9 @@ import type { DialogManager }      from './dialog-manager.js'
 import type { MiddleManager }      from './middle-manager.js'
 import type { WechatyManager }     from './wechaty-manager.js'
 import type { UserManager }        from './user-manager.js'
-import { Contact, FileBox, Message, MiniProgram, UrlLink } from 'wechaty'
+import type { Contact, Message, MiniProgram, UrlLink } from 'wechaty'
+
+import { FileBox  } from 'file-box'
 
 export class MatrixHandler {
 
@@ -337,12 +339,12 @@ export class MatrixHandler {
 
   protected async superEvent2Message (
     superEvent: SuperEvent,
-  ):Promise<string|number|Message|Contact|FileBox|MiniProgram|UrlLink> {
+  ):Promise<string|number|Message|Contact|FileBox |MiniProgram|UrlLink> {
     const content = superEvent.event.content!
     let mxcUrl = ''
     let httpsUrl = ''
     const body = superEvent.text()
-    let message : string|number|Message|Contact|FileBox|MiniProgram|UrlLink
+    let message : string|number|Message|Contact|FileBox |MiniProgram|UrlLink
     = body
     switch (content['msgtype']) {
       case 'm.text':
@@ -353,9 +355,11 @@ export class MatrixHandler {
         // XXX can't show Animation well in wechat.
         message = FileBox.fromUrl(
           httpsUrl,
-          body.indexOf('.') > -1 || content['msgtype'] !== 'm.image'
-            ? body
-            : `${mxcUrl.split('/').pop()}.gif`,
+          {
+            name: body.indexOf('.') > -1 || content['msgtype'] !== 'm.image'
+              ? body
+              : `${mxcUrl.split('/').pop()}.gif`,
+          },
         )
     }
     return message
